@@ -218,6 +218,16 @@ def build_sources(documents: list[Document], answer: str) -> list[Source]:
     return [s for s in sources if s["id"] in cited] or sources
 
 
+def chunk_key(doc: Document) -> tuple:
+    """Identity of a chunk, used to de-duplicate merged search results."""
+
+    return (
+        doc.metadata.get("source"),
+        doc.metadata.get("chunk_index"),
+        doc.page_content
+    )
+
+
 def filter_relevant(question: str, documents: list[Document]) -> list[Document]:
     """LLM-grade each document (concurrently) and keep the relevant ones."""
 
@@ -269,14 +279,38 @@ def analyze_query(state: GraphState) -> dict:
 
 
 def retrieve(state: GraphState) -> dict:
-    """Node 2: top-k similarity search for the current search query."""
+    """Node 2: top-k similarity search for the current search query.
+
+    On the first attempt the standalone question is searched as well and
+    the results are merged. Query expansion usually helps, but it can also
+    push the best chunk out of the top-k (e.g. extra words like
+    "constructor arguments" matched near-duplicate sections). Searching
+    both means a bad expansion cannot hide what the plain question finds.
+    Retries search only the rewritten query: the question's chunks were
+    already graded in the first round.
+    """
 
     query = state.get("rewritten_query") or state["question"]
     documents = retrieve_documents(query=query, k=TOP_K)
+    step = f"retrieve: {len(documents)} chunks for '{query}'"
+
+    question = state.get("standalone_question") or state["question"]
+
+    if state.get("retry_count", 0) == 0 and question != query:
+        seen = {chunk_key(doc) for doc in documents}
+        added = 0
+
+        for doc in retrieve_documents(query=question, k=TOP_K):
+            if chunk_key(doc) not in seen:
+                seen.add(chunk_key(doc))
+                documents.append(doc)
+                added += 1
+
+        step += f" + {added} new for the original question"
 
     return {
         "documents": documents,
-        "steps": [f"retrieve: {len(documents)} chunks for '{query}'"]
+        "steps": [step]
     }
 
 

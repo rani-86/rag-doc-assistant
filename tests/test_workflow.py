@@ -89,8 +89,12 @@ def test_rewrite_recovers_when_second_retrieval_is_relevant(patch_graph, monkeyp
         []
     )
 
-    batches = iter([[make_doc("unrelated")], [make_doc("isEmail()")]])
-    monkeypatch.setattr(nodes, "retrieve_documents", lambda query, k: next(batches))
+    # Only the rewritten query ("another query") finds the relevant chunk.
+    monkeypatch.setattr(
+        nodes, "retrieve_documents",
+        lambda query, k: [make_doc("isEmail()")] if query == "another query"
+        else [make_doc("unrelated")]
+    )
 
     result = run_query("validate email")
 
@@ -213,3 +217,62 @@ def test_chitchat_skips_retrieval_and_sees_file_list(patch_graph, monkeypatch):
     assert "documents" not in result
     # The real file list is given to the LLM.
     assert "routing.md (5 chunks)" in prompts[0][0].content
+
+
+def test_first_retrieval_also_searches_the_original_question(patch_graph, monkeypatch):
+    from app.graph import nodes
+
+    patch_graph(
+        FakeLLM({
+            "QueryAnalysis": analysis,
+            "GradeDocument": grade_by_keyword,
+            "GroundednessCheck": grounded
+        }),
+        []
+    )
+
+    searched = []
+
+    def fake_retrieve(query, k):
+        searched.append(query)
+        # The expanded query misses; the plain question finds the chunk.
+        if query == "How do I validate an email?":
+            return [make_doc("isEmail()"), make_doc("shared")]
+        return [make_doc("unrelated"), make_doc("shared")]
+
+    monkeypatch.setattr(nodes, "retrieve_documents", fake_retrieve)
+
+    result = run_query("how to validate email?")
+
+    assert searched == ["email validation", "How do I validate an email?"]
+    # Merged and de-duplicated: unrelated, shared, isEmail()
+    assert len(result["documents"]) == 3
+    assert result["status"] == "answered"
+    assert result["retry_count"] == 0
+
+
+def test_retries_search_only_the_rewritten_query(patch_graph, monkeypatch):
+    from app.graph import nodes
+
+    patch_graph(
+        FakeLLM({
+            "QueryAnalysis": analysis,
+            "RewrittenQuery": rewrite,
+            "GradeDocument": lambda _: GradeDocument(relevance="irrelevant")
+        }),
+        []
+    )
+
+    searched = []
+    monkeypatch.setattr(
+        nodes, "retrieve_documents",
+        lambda query, k: searched.append(query) or [make_doc("unrelated")]
+    )
+
+    run_query("train a CNN", max_retries=1)
+
+    assert searched == [
+        "email validation",             # round 1: expanded query
+        "How do I validate an email?",  # round 1: original question
+        "another query"                 # retry: rewritten query only
+    ]
