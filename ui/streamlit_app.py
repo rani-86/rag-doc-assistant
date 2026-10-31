@@ -105,6 +105,10 @@ if question := st.chat_input("Ask about the documentation"):
 
             if response.is_success:
                 content = body["answer"]
+                if body.get("used_web_search") and body["status"] != "no_relevant_documents":
+                    content = ("🌐 *Not found in the indexed documentation; "
+                               "this answer is based on web search results.*"
+                               "\n\n" + content)
                 if body["status"] == "ungrounded":
                     content += ("\n\n⚠️ *The answer may contain claims not "
                                 "supported by the documents.*")

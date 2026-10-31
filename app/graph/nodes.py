@@ -49,12 +49,14 @@ class QueryAnalysis(BaseModel):
                     "is not a follow-up."
     )
     query_type: QueryType = Field(
-        description="The type of question. Use 'chitchat' for greetings, "
-                    "thanks, small talk, questions about the assistant "
-                    "itself, or about which documents/files/topics it has. "
-                    "Any technical question must get one of the other types, "
-                    "even if it seems unrelated to the corpus: it still has "
-                    "to be searched so the system can say it is not covered."
+        description="The type of question. Use 'chitchat' ONLY when the "
+                    "message is clearly a greeting (hi, hello), thanks or "
+                    "goodbye, or a question about the assistant itself or "
+                    "which documents/files/topics it has. Everything else "
+                    "gets one of the other types and is searched, including "
+                    "technical questions that seem unrelated to the corpus "
+                    "and unclear or single-word messages (e.g. 'apple'), so "
+                    "the system can say honestly that it is not covered."
     )
     search_query: str = Field(
         description="A search query optimised for semantic retrieval over "
@@ -100,9 +102,10 @@ class GroundednessCheck(BaseModel):
 ANALYZE_PROMPT = ChatPromptTemplate.from_messages([
     ("system",
      "You prepare user questions for retrieval over a technical "
-     f"documentation corpus: {CORPUS_DESCRIPTION}. Greetings and "
-     "small talk are classified as 'chitchat'; technical questions are "
-     "never 'chitchat', even when they look unrelated to the corpus."),
+     f"documentation corpus: {CORPUS_DESCRIPTION}. Only clear greetings, "
+     "thanks, goodbyes and questions about the assistant or its documents "
+     "are 'chitchat'. When in doubt, do not use 'chitchat': unclear, "
+     "single-word or off-topic messages must still be searched."),
     ("human",
      "Chat history (may be empty):\n{history}\n\n"
      "User question: {question}\n\n"
@@ -160,7 +163,8 @@ CHITCHAT_PROMPT = ChatPromptTemplate.from_messages([
      "You are a technical documentation assistant. You answer questions by "
      "searching the indexed documents listed below and citing them. Right "
      "now the user sent a greeting, small talk, or a question about you or "
-     "the corpus. Reply briefly and friendly. If they ask which files or "
+     "the corpus. Reply briefly and friendly to what they actually said "
+     "(only greet back if they greeted you). If they ask which files or "
      "topics you have, list the documents below. Do not answer technical "
      "questions from your own knowledge; invite the user to ask them so you "
      "can search the documents.\n\n"
