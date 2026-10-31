@@ -63,21 +63,21 @@ lightweight Chroma store.
 
 ```mermaid
 flowchart TD
-    S([START]) --> A[analyze_query<br/>resolve follow-ups · classify · rewrite]
-    A -->|question| R[retrieve<br/>Chroma top-k]
-    A -->|greeting / small talk| C[respond_chitchat]
-    R --> G[grade_documents<br/>LLM grades each chunk]
-    G -->|some relevant| GEN[generate<br/>answer with citations]
-    G -->|none relevant & retry_count < MAX_RETRIES| RW[rewrite_query<br/>retry_count += 1]
+    S(["START"]) --> A["analyze_query<br/>resolve follow-ups, classify, rewrite"]
+    A -->|"question"| R["retrieve<br/>Chroma top-k"]
+    A -->|"greeting / small talk"| C["respond_chitchat"]
+    R --> G["grade_documents<br/>LLM grades each chunk"]
+    G -->|"some relevant"| GEN["generate<br/>answer with citations"]
+    G -->|"none relevant, retries left"| RW["rewrite_query<br/>retry_count + 1"]
     RW --> R
-    G -->|none relevant & retries used up & TAVILY_API_KEY set| W[web_search<br/>Tavily + same LLM grading]
-    G -->|none relevant & retries used up & no key| F[fallback<br/>&quot;I don't know&quot;]
-    W -->|relevant results| GEN
-    W -->|nothing relevant / search failed| F
-    GEN --> H[check_hallucination<br/>is the answer grounded?]
-    H -->|grounded| E([END])
-    H -->|ungrounded & attempts left| GEN
-    H -->|ungrounded & no attempts left| E
+    G -->|"none relevant, no retries left, Tavily key set"| W["web_search<br/>Tavily + same LLM grading"]
+    G -->|"none relevant, no retries left, no key"| F["fallback<br/>I don't know"]
+    W -->|"relevant results"| GEN
+    W -->|"nothing relevant or search failed"| F
+    GEN --> H["check_hallucination<br/>is the answer grounded?"]
+    H -->|"grounded"| E(["END"])
+    H -->|"ungrounded, attempts left"| GEN
+    H -->|"ungrounded, no attempts left"| E
     F --> E
     C --> E
 ```
