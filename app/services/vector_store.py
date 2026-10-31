@@ -76,17 +76,21 @@ def index_documents(chunks: list[Document]) -> Chroma:
 
 
 def retrieve_documents(query: str, k: int = TOP_K) -> list[Document]:
-    """Retrieve the top-k chunks and record their similarity score."""
+    """Retrieve the top-k chunks and record their cosine similarity."""
 
-    results = get_vector_store().similarity_search_with_relevance_scores(
+    # Chroma returns squared L2 distance. Embeddings are normalised, so
+    # cosine similarity = 1 - distance / 2 exactly (range -1..1). This avoids
+    # LangChain's relevance-score conversion, which warns (and logs every
+    # chunk) whenever an unrelated query gives a score below 0.
+    results = get_vector_store().similarity_search_with_score(
         query=query,
         k=k
     )
 
     documents = []
 
-    for document, score in results:
-        document.metadata["score"] = round(float(score), 4)
+    for document, distance in results:
+        document.metadata["score"] = round(1 - float(distance) / 2, 4)
         documents.append(document)
 
     return documents

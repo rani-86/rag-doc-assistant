@@ -316,6 +316,38 @@ curl -X POST localhost:8000/query -H "Content-Type: application/json" \
 Each rewrite uses different terms from the previous queries, and the loop stops
 after `MAX_RETRIES` instead of answering from irrelevant chunks.
 
+### Example: the same question with web search enabled (bonus)
+
+With `TAVILY_API_KEY` set, the same question takes the web-search branch once
+the corpus retries are used up:
+
+```json
+{
+  "status": "answered",
+  "used_web_search": true,
+  "grounded": true,
+  "retries": 2,
+  "sources": [
+    {"id": 1, "filename": "PyTorch CNN Tutorial: Build and Train Convolutional Neural Networks ...", "source": "https://www.datacamp.com/tutorial/pytorch-cnn-tutorial", "section": "web search", "...": "..."},
+    {"id": 3, "filename": "Simple Convolutional Neural Network (CNN) for Dummies in PyTorch ...", "source": "https://medium.com/@myringoleMLGOD/simple-convolutional-neural-network-cnn-for-dummies-in-pytorch-a-step-by-step-guide-6f4109f6df80", "section": "web search", "...": "..."},
+    {"id": 4, "filename": "Building a Convolutional Neural Network using PyTorch - GeeksforGeeks", "source": "https://www.geeksforgeeks.org/deep-learning/building-a-convolutional-neural-network-using-pytorch", "section": "web search", "...": "..."}
+  ],
+  "steps": [
+    "analyze_query: type=how-to, query='train convolutional neural network using PyTorch ...'",
+    "retrieve: 5 chunks for '...'", "grade_documents: 0/5 relevant",
+    "rewrite_query (retry 1): '...'", "retrieve: ...", "grade_documents: 0/5 relevant",
+    "rewrite_query (retry 2): '...'", "retrieve: ...", "grade_documents: 0/5 relevant",
+    "web_search: 5/5 results relevant",
+    "generate: attempt 1",
+    "check_hallucination: grounded=True"
+  ]
+}
+```
+
+The answer is generated from the graded web results and cites their URLs.
+`used_web_search: true` tells the client the answer did not come from the
+indexed documentation.
+
 ### Example: a follow-up question (conversation memory)
 
 In session `demo2`:

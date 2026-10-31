@@ -55,6 +55,14 @@ def make_doc(text: str, filename: str = "validation.md") -> Document:
     )
 
 
+@pytest.fixture(autouse=True)
+def no_real_web_search(monkeypatch):
+    """Tests must not depend on the developer's .env: hide any real
+    TAVILY_API_KEY so web search is off unless a test enables it."""
+
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+
+
 @pytest.fixture
 def patch_graph(monkeypatch):
     """Install a fake LLM and a fake retriever into the graph nodes."""
