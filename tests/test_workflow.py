@@ -276,3 +276,19 @@ def test_retries_search_only_the_rewritten_query(patch_graph, monkeypatch):
         "How do I validate an email?",  # round 1: original question
         "another query"                 # retry: rewritten query only
     ]
+
+
+def test_citations_with_line_ranges_are_normalised(patch_graph):
+    patch_graph(
+        FakeLLM({
+            "QueryAnalysis": analysis,
+            "GradeDocument": lambda _: GradeDocument(relevance="relevant"),
+            "GroundednessCheck": grounded
+        }, answer="A pome 【1†L1-L4】 【3†L7-L10】."),
+        [make_doc("a"), make_doc("b"), make_doc("c")]
+    )
+
+    result = run_query("validate email")
+
+    assert result["answer"] == "A pome [1] [3]."
+    assert [s["id"] for s in result["sources"]] == [1, 3]

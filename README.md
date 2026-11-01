@@ -14,11 +14,17 @@ fallback (Tavily) · conversation memory · Streamlit UI
 
 ## Screenshots
 
-| Answer with citations | Self-correction: "I don't know" |
-|---|---|
-| ![Answer](docs/screenshots/answer.png) | ![Fallback](docs/screenshots/fallback.png) |
-| **Follow-up question (memory)** | **Web search fallback** |
-| ![Memory](docs/screenshots/memory.png) | ![Web search](docs/screenshots/web_search.png) |
+**Chat UI with the indexed corpus.** A greeting is answered directly, without retrieval:
+
+![Chat UI and corpus](docs/screenshots/overview.png)
+
+**Answer with citations** ("how to handle error"), generated only from the graded chunks of `fastapi_handling_errors.md`:
+
+![Answer with citations](docs/screenshots/answer.png)
+
+**Web search fallback (bonus).** An off-topic question finds nothing relevant in the docs; after the retries, the answer comes from graded web results and is labelled as such:
+
+![Web search fallback](docs/screenshots/web_search.png)
 
 ---
 

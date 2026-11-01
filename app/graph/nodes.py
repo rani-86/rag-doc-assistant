@@ -379,8 +379,9 @@ def generate(state: GraphState) -> dict:
         )
     )
 
-    # Some models cite with full-width brackets (【1】); normalise to [1].
-    answer = re.sub(r"【(\d+)】", r"[\1]", response.content.strip())
+    # gpt-oss sometimes cites in its own format, with full-width brackets
+    # and optional line ranges (【1】, 【1†L1-L4】); normalise both to [1].
+    answer = re.sub(r"【(\d+)(?:†[^】]*)?】", r"[\1]", response.content.strip())
     generation_count = state.get("generation_count", 0) + 1
 
     return {
