@@ -33,6 +33,11 @@ def send_feedback(query_id: str, rating: str) -> None:
 with st.sidebar:
     st.header("Corpus")
 
+    # Shown once after a rerun (e.g. "Removed x.md").
+    if notice := st.session_state.pop("notice", None):
+        st.success(notice)
+
+    corpus = {"documents": []}
     try:
         corpus = httpx.get(f"{API_URL}/documents", timeout=10).json()
         st.caption(
@@ -57,6 +62,28 @@ with st.sidebar:
             st.success(f"Indexed {response.json()['total_chunks']} chunks")
         else:
             st.error(response.json().get("detail"))
+
+    if corpus["documents"]:
+        filenames = {d["source"]: d["filename"] for d in corpus["documents"]}
+        to_remove = st.selectbox(
+            "Remove a document",
+            options=list(filenames),
+            format_func=filenames.get,
+            index=None,
+            placeholder="Choose a document"
+        )
+        if to_remove and st.button("Remove"):
+            response = httpx.delete(
+                f"{API_URL}/documents", params={"source": to_remove}, timeout=30
+            )
+            if response.is_success:
+                removed = response.json()["chunks_removed"]
+                st.session_state.notice = (
+                    f"Removed {filenames[to_remove]} ({removed} chunks)"
+                )
+                st.rerun()
+            else:
+                st.error(response.json().get("detail"))
 
     if st.button("New conversation"):
         st.session_state.session_id = str(uuid4())
